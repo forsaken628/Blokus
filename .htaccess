@@ -1,0 +1,6 @@
+
+RewriteEngine on
+RewriteCond %{HTTP_HOST} ^254244460\.10g\.me$ [OR]
+RewriteCond %{HTTP_HOST} ^www\.254244460\.10g\.me$
+RewriteRule ^/?$ "http\:\/\/254244460\.10g\.me\/index\.php" [R=301,L]
+

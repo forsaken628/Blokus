@@ -25,13 +25,20 @@ $(function () {
     var tableNow = {}, tableBefore = {}, tableBlank = {}, tableConfirmed = {};
     var pieceNodeArr;
     var pieceSelect = $("#piece");
+    var lock = {
+        query: false,
+        start: true,
+        corner: false,
+        side: true
+    };
     var queryLock = false, startLock = true, cornerLock = false, sideLock = true;
+    
     for (i = 0; i < WIDTH * WIDTH; i++) {
         tableBlank[i] = 0;
+        tableNow[i] = 0;
+        tableBefore[i] = 0;
+        tableConfirmed[i] = 0;
     }
-    clone(tableBlank, tableNow);
-    clone(tableBlank, tableBefore);
-    clone(tableBlank, tableConfirmed);
     if (WIDTH == 14) {
         td.eq(45).addClass('start');
         td.eq(150).addClass('start');
@@ -42,7 +49,29 @@ $(function () {
         td.eq(380).addClass('start');
         td.eq(399).addClass('start');
     }
-    var player = {0:'1',1:'2',2:'3-1',3:'3-2',4:'4-1',5:'4-2',6:'4-3',7:'4-4',8:'4-5',9:'5-1',10:'5-2',11:'5-3',12:'5-4',13:'5-5',14:'5-6',15:'5-7',16:'5-8',17:'5-9',18:'5-10',19:'5-11',20:'5-12'};
+    var player = {
+        0: '1',
+        1: '2',
+        2: '3-1',
+        3: '3-2',
+        4: '4-1',
+        5: '4-2',
+        6: '4-3',
+        7: '4-4',
+        8: '4-5',
+        9: '5-1',
+        10: '5-2',
+        11: '5-3',
+        12: '5-4',
+        13: '5-5',
+        14: '5-6',
+        15: '5-7',
+        16: '5-8',
+        17: '5-9',
+        18: '5-10',
+        19: '5-11',
+        20: '5-12'
+    };
     for (i = 0; i < 21; i++) {
         pieceSelect.append('<option value="' + i + '">' + player[i] + '</option>');
     }
@@ -158,7 +187,7 @@ $(function () {
                 showInGameTable(tableNow);
                 alert('到你了');
             }
-        },'json');
+        }, 'json');
     }
 
     function clone(fromObj, toObj) {
@@ -324,5 +353,7 @@ $(function () {
         }
         return nodeArr;
     }
+    
+    
 
 });

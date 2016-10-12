@@ -6,7 +6,7 @@
  * Time: 16:51
  */
 //todo 输入校验
-$mysqli = require('db.php');
+$mysqli = require ('../../db.php');
 
 if (mysqli_connect_errno()) {
     printf("Connect failed: %s\n", mysqli_connect_error());
@@ -15,16 +15,17 @@ if (mysqli_connect_errno()) {
 
 switch ($_REQUEST['type']) {
     case 'c':
-        $nodeArr = "'" . $_REQUEST['nodearr'] . "'";
+        $piece = $_POST['piece'];
         $mysqli->query("
-            INSERT INTO `tab_action` (type,gid,color,piece,x,y,nodearr)
-            VALUE ('c',
-            {$_REQUEST['gid']},
-            {$_REQUEST['color']},
-            {$_REQUEST['piece']},
-            {$_REQUEST['x']},
-            {$_REQUEST['y']},
-            $nodeArr);");
+            INSERT INTO `tab_action` SET
+            type = 'c',
+            gid = {$_POST['gid']},
+            color = {$piece["color"]},
+            pid = {$piece["id"]},
+            inverse = {$piece["inverse"]},
+            direction = {$piece["direction"]},
+            x = {$_POST['x']},
+            y = {$_POST['y']}");
         if ($mysqli->errno) {
             var_dump($mysqli->error_list);
             exit();
@@ -32,9 +33,9 @@ switch ($_REQUEST['type']) {
         break;
     case 'q':
         $result = $mysqli->query("
-            SELECT id,color,piece,x,y,nodearr
+            SELECT id,color,pid,inverse,direction,x,y
             FROM `tab_action`
-            WHERE gid={$_REQUEST['gid']} AND id>={$_REQUEST['aid']};");
+            WHERE gid={$_REQUEST['gid']} AND id>{$_REQUEST['aid']};");
         if ($mysqli->errno) {
             var_dump($mysqli->error_list);
             exit();
@@ -44,12 +45,15 @@ switch ($_REQUEST['type']) {
             $row = $result->fetch_assoc();
             $row['id'] = intval($row['id']);
             $row['color'] = intval($row['color']);
-            $row['piece'] = intval($row['piece']);
+            $row['pid'] = intval($row['pid']);
+            $row['inverse'] = intval($row['inverse']);
+            $row['direction'] = intval($row['direction']);
             $row['x'] = intval($row['x']);
             $row['y'] = intval($row['y']);
-            $row['nodearr'] = json_decode($row['nodearr']);
             $t[] = $row;
         }
         echo json_encode($t);
 }
+
+
 $mysqli->close();

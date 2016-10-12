@@ -1,18 +1,17 @@
 <?php
-require_once('SQLPassword.php');
 session_start();
 if (!isset($_SESSION['gid'])) {
     header("location:index.php");
     exit();
 }
-$mysqli = new mysqli($sqlhost, $sqluser, $sqlpwd, $sqldb);
+$mysqli = require ('db.php');
 
 if (mysqli_connect_errno()) {
     printf("Connect failed: %s\n", mysqli_connect_error());
     exit();
 }
 $result = $mysqli->query("
-            SELECT id,color,piece,x,y,nodearr
+            SELECT id,color,pid,x,y,nodearr
             FROM `tab_action`
             WHERE gid={$_SESSION['gid']} AND id>=0;");
 if ($mysqli->errno) {
@@ -68,7 +67,7 @@ for ($i = 0; $i < $result->num_rows; $i++) {
         echo "var resume='".json_encode($t)."';";
         ?>
     </script>
-    <script src="http://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js" type="text/javascript" charset="utf-8"></script>
+    <script src="./js/jquery-1.js" type="text/javascript" charset="utf-8"></script>
     <script src="./js/jquery.json.min.js" type="text/javascript" charset="utf-8"></script>
     <script src="./js/blokus.min.js" type="text/javascript" charset="utf-8"></script>
 </head>

@@ -1,4 +1,5 @@
 # Blokus
-online blokus for 2-4 person
 
-http://254244460.10g.me/index.php
+双人在线角斗士桌游
+
+http://forsaken628.github.io/Blokus/

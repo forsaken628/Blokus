@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style type="text/css">
+        td {
+            border: 1px solid blue;
+            width: 20px;
+            height: 20px;
+        }
+
+        td.start {
+            border: 4px double red;
+            width: 12px;
+            height: 12px;
+        }
+
+        .aqua {
+            background-color: aqua;
+        }
+
+        .red {
+            background-color: #F55;
+        }
+
+        .green {
+            background-color: #32CD32;
+        }
+
+        .orange {
+            background-color: orange;
+        }
+    </style>
+</head>
+<body>
+
+<button type="button" id="clean">clean</button>
+<br>
+<p><span>room id: </span><span id="room-id">0</span></p>
+<br>
+<label>room id: <input id="join_id"/></label>
+<br>
+<br>
+<label>颜色：<select id="color">
+    <option value="1">蓝</option>
+    <option value="2">红</option>
+</select></label>
+<br>
+<br>
+<button type="button" id="new">new game</button>
+<button type="button" id="join">join game</button>
+<br>
+
+<br>
+<table id="game-table"></table>
+<br>
+<br>
+<table id="select-table"></table>
+<label for="piece">棋子</label>
+<select id="piece"></select>
+<br/>
+<button type="button" id="roll">旋转</button>
+<button type="button" id="mirror">镜像</button>
+<br/>
+
+<script src="./js/jquery-1.js"></script>
+<script src="https://cdn.wilddog.com/sdk/js/2.5.8/wilddog.js"></script>
+<script>
+    (function () {
+
+        function Piece(id, color) {
+            //坐标系右下为正
+            var PIECES = [[[0, 0]],
+                [[0, 0], [1, 0]],
+                [[-1, 0], [0, 0], [1, 0]],
+                [[0, 0], [1, 0], [0, 1]],
+                [[0, 0], [1, 0], [0, 1], [1, 1]],
+                [[-1, 0], [0, 0], [1, 0], [2, 0]],
+                [[-1, 0], [0, 0], [1, 0], [-1, 1]],
+                [[0, -1], [-1, 0], [0, 0], [1, 0]],
+                [[-1, 0], [0, 0], [0, 1], [1, 1]],
+                [[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0]],
+                [[-1, 0], [-1, 1], [0, 0], [1, 0], [2, 0]],
+                [[-1, 0], [0, 0], [1, 0], [2, 0], [0, 1]],
+                [[-1, 0], [0, 0], [1, 0], [1, 1], [2, 1]],
+                [[-1, -1], [0, -1], [0, 0], [0, 1], [1, 1]],
+                [[-1, 0], [0, 0], [1, 0], [-1, 1], [1, 1]],
+                [[-1, 0], [0, 0], [1, 0], [0, 1], [1, 1]],
+                [[-1, -1], [-1, 0], [-1, 1], [0, -1], [1, -1]],
+                [[-1, -1], [-1, 0], [-1, 1], [0, 0], [1, 0]],
+                [[0, -1], [-1, 0], [0, 0], [1, 0], [-1, 1]],
+                [[0, -1], [-1, 0], [0, 0], [1, 0], [0, 1]],
+                [[-1, -1], [0, -1], [0, 0], [1, 0], [1, 1]]];
+
+            var nodeArr, h1 = 0, h2 = 0, v1 = 0, v2 = 0, inverse = false, direction = 0;
+            var side = {}, corner = {};
+
+            this.initPiece = function (id) {
+                nodeArr = PIECES[id];
+                for (var i in nodeArr) {
+                    h1 = nodeArr[i][1] > h1 ? nodeArr[i][1] : h1;
+                    h2 = nodeArr[i][1] < h2 ? nodeArr[i][1] : h2;
+                    v1 = nodeArr[i][0] > v1 ? nodeArr[i][0] : v1;
+                    v2 = nodeArr[i][0] < v2 ? nodeArr[i][0] : v2;
+                    side[(nodeArr[i][0] + 1) + ',' + (nodeArr[i][1])] = [nodeArr[i][0] + 1, nodeArr[i][1]];
+                    side[(nodeArr[i][0] - 1) + ',' + (nodeArr[i][1])] = [nodeArr[i][0] - 1, nodeArr[i][1]];
+                    side[(nodeArr[i][0]) + ',' + (nodeArr[i][1] + 1)] = [nodeArr[i][0], nodeArr[i][1] + 1];
+                    side[(nodeArr[i][0]) + ',' + (nodeArr[i][1] - 1)] = [nodeArr[i][0], nodeArr[i][1] - 1];
+                    corner[(nodeArr[i][0] + 1) + ',' + (nodeArr[i][1] + 1)] = [nodeArr[i][0] + 1, nodeArr[i][1] + 1];
+                    corner[(nodeArr[i][0] + 1) + ',' + (nodeArr[i][1] - 1)] = [nodeArr[i][0] + 1, nodeArr[i][1] - 1];
+                    corner[(nodeArr[i][0] - 1) + ',' + (nodeArr[i][1] + 1)] = [nodeArr[i][0] - 1, nodeArr[i][1] + 1];
+                    corner[(nodeArr[i][0] - 1) + ',' + (nodeArr[i][1] - 1)] = [nodeArr[i][0] - 1, nodeArr[i][1] - 1];
+                }
+                for (i in nodeArr) {
+                    delete side[nodeArr[i][0] + ',' + nodeArr[i][1]];
+                    delete corner[nodeArr[i][0] + ',' + nodeArr[i][1]];
+                }
+                for (i in side) {
+                    delete corner[i];
+                }
+
+            };
+
+            this.roll = function (times) {
+                times %= 4;
+                direction = (direction + (inverse ? 4 - times : times)) % 4;
+                while (times--) {
+                    var i;
+                    for (i in nodeArr) {
+                        nodeArr[i] = [-nodeArr[i][1], nodeArr[i][0]];//顺时针90度
+                        var t = v1;
+                        v1 = -h2;
+                        h2 = v2;
+                        v2 = -h1;
+                        h1 = t;
+                    }
+                    for (i in side) {
+                        side[i] = ([-side[i][1], side[i][0]]);//顺时针90度
+                    }
+                    for (i in corner) {
+                        corner[i] = ([-corner[i][1], corner[i][0]]);//顺时针90度
+                    }
+                }
+            };
+
+            this.mirror = function () {
+                inverse = !inverse;
+                for (var i in nodeArr) {
+                    nodeArr[i][0] = -nodeArr[i][0];
+                }
+                var t;
+                t = v1;
+                v1 = -v2;
+                v2 = -t;
+                for (i in side) {
+                    side[i][0] = -side[i][0];
+                }
+                for (i in corner) {
+                    corner[i][0] = -corner[i][0];
+                }
+            };
+
+            this.getPiece = function () {
+                return {
+                    id: id,
+                    color: color,
+                    nodeArr: nodeArr,
+                    v1: v1,
+                    v2: v2,
+                    h1: h1,
+                    h2: h2,
+                    inverse: inverse,
+                    direction: direction,
+                    side: side,
+                    corner: corner
+                }
+            };
+
+            this.initPiece(id);
+        }
+
+        function Table(id, width) {
+            var main = $("#" + id);
+            var table = {blank: {}, now: {}, before: {}, M1: {}, M2: {}, M3: {}, M4: {}};
+            var i;
+
+            var tr = $("<tr>");
+            for (i = 0; i < width; i++) {
+                tr.append($("<td>"));
+            }
+            for (i = 0; i < width; i++) {
+                main.append(tr.clone());
+            }
+            var td = main.find("td");
+            for (i = 0; i < width * width; i++) {
+                table.blank[i] = 0;
+                table.now[i] = 0;
+                table.before[i] = 0;
+                table.M1[i] = 0;
+            }
+            return {
+                show: function (tableName) {
+                    var colors = ["", "aqua", "red", "green", "orange"];
+                    var i, colorClass;
+                    if (!table.hasOwnProperty(tableName)) {
+                        return;
+                    }
+                    var t = table[tableName];
+                    for (i in t) {
+                        if (t[i] == table.before[i])
+                            continue;
+                        table.before[i] = t[i];
+                        colorClass = colors[t[i]];
+                        td.eq(i).removeClass("aqua red green orange").addClass(colorClass);
+                    }
+                },
+
+                changeTableNow: function (piece, x, y, color) {
+                    piece = piece.getPiece();
+                    var nodeArr = piece.nodeArr;
+                    var i;
+
+                    if (piece.v2 + x < 0
+                            || piece.v1 + x >= width
+                            || piece.h2 + y < 0
+                            || piece.h1 + y >= width) {
+                        return false;
+                    }
+
+                    for (i in nodeArr) {
+                        var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
+                        table.now[j] = color;
+                    }
+                    return true;
+                },
+
+                sideCheck: function (piece, x, y, color) {
+                    piece = piece.getPiece();
+                    var side = piece.side;
+                    for (i in side) {
+                        if (x + side[i][0] >= 0
+                                && x + side[i][0] < width
+                                && y + side[i][1] >= 0
+                                && y + side[i][1] < width) {
+                            var j = x + side[i][0] + (y + side[i][1]) * width;
+                            if (table.M1[j] == color) {
+                                return false;
+                            }
+                        }
+                    }
+                    return true;
+                },
+
+                cornerCheck: function (piece, x, y, color) {
+                    piece = piece.getPiece();
+                    var corner = piece.corner;
+                    for (i in corner) {
+                        if (x + corner[i][0] >= 0
+                                && x + corner[i][0] < width
+                                && y + corner[i][1] >= 0
+                                && y + corner[i][1] < width) {
+                            var j = x + corner[i][0] + (y + corner[i][1]) * width;
+                            if (table.M1[j] == color) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                },
+
+                startCheck: function (color) {
+                    if (width == 14) {
+                        return (table.now[45] == color || table.now[150] == color);
+                    } else {
+                        return (table.now[0] == color
+                        || table.now[width - 1] == color
+                        || table.now[width * (width - 1)] == color
+                        || table.now[width * width - 1] == color);
+                    }
+                },
+
+                overlapCheck: function (piece, x, y, color) {
+                    piece = piece.getPiece();
+                    var nodeArr = piece.nodeArr;
+                    for (i in nodeArr) {
+                        var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
+                        if (table.M1[j] == color) {
+                            return false;
+                        }
+                    }
+                    return true;
+                },
+
+                clone: function (fromObj, toObj) {
+                    for (var i in table[fromObj]) {
+                        table[toObj][i] = table[fromObj][i];
+                    }
+                }
+            };
+
+        }
+
+        function Mask(n) {
+            this.mask = n;
+            this.take = function (n) {
+                if (n < 0 || n > 31)
+                    return false;
+                if (~this.mask & 1 << n)
+                    return false;
+                this.mask &= ~(1 << n);
+                return true;
+            };
+            this.query = function () {
+                var i;
+                var a = [];
+                for (i = 0; 1 << i < this.mask; i++) {
+                    if (this.mask & (1 << i))
+                        a.push(i)
+                }
+                return a;
+            };
+        }
+
+        var player = {
+            0: '1',
+            1: '2',
+            2: '3-1',
+            3: '3-2',
+            4: '4-1',
+            5: '4-2',
+            6: '4-3',
+            7: '4-4',
+            8: '4-5',
+            9: '5-1',
+            10: '5-2',
+            11: '5-3',
+            12: '5-4',
+            13: '5-5',
+            14: '5-6',
+            15: '5-7',
+            16: '5-8',
+            17: '5-9',
+            18: '5-10',
+            19: '5-11',
+            20: '5-12'
+        };
+
+        var pieceSelect = $("#piece");
+
+        var gameTable = new Table("game-table", 14);
+        var selectTable = new Table("select-table", 5);
+
+        var td = $('#game-table').find('td');
+
+        //if (WIDTH == 14) {
+        td.eq(45).addClass('start');
+        td.eq(150).addClass('start');
+        //}
+
+        wilddog.initializeApp({syncURL: "https://blokus.wilddogio.com"});
+        var ref = wilddog.sync();
+        var refRooms = ref.child("rooms");
+
+        ref.once("value", function (data) {
+            console.log(data.val());
+        });
+
+        function start() {
+            refRooms.once("value").then(function (data) {
+                var rooms = data.val();
+
+                if (rooms === null) {
+                    refRooms.set({"init": 1}).then(start);
+                    return
+                }
+
+                var roomID = 0;
+                var refRoom;
+
+                var COLOR = 0;
+
+                refRooms.on("value", function (data) {
+                    var v = data.val();
+                    if (v === null) {
+                        return;
+                    }
+                    rooms = data.val();
+                    console.log("rooms", v.length, v);
+                });
+
+                function initGame() {
+                    $("#room-id").html(roomID);
+
+                    var piece;
+                    var startFlag = true;
+                    var oid = 0;
+
+                    var onTurn;
+
+                    refRoom.on("value", function (data) {
+                        var v = data.val();
+                        if (!v) return;
+                        if (v.operation) {
+                            var i;
+                            gameTable.clone("M1", "now");
+                            for (i = oid; i < v.operation.length; i++) {
+                                var op = v.operation[i];
+                                var p = new Piece(op.id);
+                                p.roll(op.direction);
+                                if (op.inverse) {
+                                    p.mirror();
+                                }
+                                gameTable.changeTableNow(p, op.x, op.y, op.color);
+                            }
+                            oid = v.operation.length;
+                            gameTable.clone("now", "M1");
+                            gameTable.show("now");
+                        }
+
+                        onTurn = (v.player == COLOR);
+                    });
+
+                    var i, tmp = [];
+                    for (i in player) {
+                        tmp = tmp.concat($("<option>").val(i).html(player[i]));
+                    }
+                    pieceSelect.append(tmp);
+
+                    pieceSelect.change(function () {
+                        piece = new Piece(pieceSelect.val(), COLOR);
+                        selectTable.clone("blank", "now");
+                        selectTable.changeTableNow(piece, 2, 2, COLOR);
+                        selectTable.show("now");
+                    });
+
+                    pieceSelect.change();
+
+                    $("#roll").click(function () {
+                        piece.roll(1);
+                        selectTable.clone("blank", "now");
+                        selectTable.changeTableNow(piece, 2, 2, COLOR);
+                        selectTable.show("now");
+                    });
+
+                    $("#mirror").click(function () {
+                        piece.mirror();
+                        selectTable.clone("blank", "now");
+                        selectTable.changeTableNow(piece, 2, 2, COLOR);
+                        selectTable.show("now");
+                    });
+
+                    td.mouseenter(function () {
+                        if (!onTurn)
+                            return;
+                        var x = $(this).index();
+                        var y = $(this).parent().index();
+                        gameTable.clone("M1", "now");
+                        if (gameTable.overlapCheck(piece, x, y, COLOR)) {
+                            gameTable.changeTableNow(piece, x, y, COLOR);
+                        } else {
+                            gameTable.clone("M1", "now");
+                        }
+                        gameTable.show("now");
+                    });
+
+                    td.click(function () {
+                        if (!onTurn)
+                            return;
+                        var x = $(this).index();
+                        var y = $(this).parent().index();
+                        var p = piece.getPiece();
+                        if (!gameTable.sideCheck(piece, x, y, COLOR)) {
+                            return;
+                        }
+                        if (startFlag && gameTable.startCheck(COLOR)
+                                || gameTable.cornerCheck(piece, x, y, COLOR)) {
+                            startFlag = false;
+                            gameTable.clone("now", "M1");
+                            var d = {player: (COLOR == 1 ? 2 : 1)};
+                            d["operation/" + oid] = {
+                                id: p.id,
+                                color: p.color,
+                                inverse: p.inverse,
+                                direction: p.direction,
+                                x: x, y: y
+                            };
+                            refRoom.update(d);
+
+                            pieceSelect.find(":selected").remove();
+                            pieceSelect.change();
+
+                        }
+                    });
+
+                    $('#game-table').mouseleave(function () {
+                        gameTable.show("M1");
+                    });
+                }
+
+                $("#new").on("click", function () {
+                    refRooms.transaction(function (v) {
+                        COLOR = $("#color").val();
+
+                        function getID() {
+                            return Math.round(Math.random() * 99).toString();
+                        }
+
+                        if (v == null) {
+                            return {};
+                        }
+
+                        if (v.length == 100) {
+                            return v;
+                        }
+
+                        roomID = getID();
+                        for (; ;) {
+                            if (v[roomID] === undefined) {
+                                var m = new Mask(7);
+                                m.take(0);
+                                m.take(COLOR);
+                                v[roomID] = m.mask;
+                                v.length = v.length ? v.length + 1 : 1;
+                                return v
+                            }
+                        }
+                    }).then(function () {
+                        if (roomID == 0) {
+                            return;
+                        }
+                        refRoom = ref.child("room/" + roomID);
+                        refRoom.set({"player": 1});
+                        initGame();
+                    })
+                });
+
+                $("#join").on("click", function () {
+                    var id = $("#join_id").val();
+                    COLOR = $("#color").val();
+
+                    if (id == "" || rooms[id] == undefined) {
+                        alert(id + "不是有效的id");
+                        return;
+                    }
+                    var m = new Mask(rooms[id]);
+                    if (!m.take(COLOR)) {
+                        alert("不是有效的颜色");
+                        return;
+                    }
+
+                    refRooms.transaction(function (v) {
+                        if (v == null) {
+                            return {};
+                        }
+                        var m = new Mask(v[id]);
+                        if (!m.take(COLOR)) {
+                            alert("不是有效的颜色");
+                            id = 0;
+                            return;
+                        }
+                        return m.mask;
+                    }).then(function () {
+                        if (id == 0) {
+                            return;
+                        }
+                        roomID = id;
+                        refRoom = ref.child("room/" + roomID);
+                        initGame();
+                    });
+                });
+
+                $("#clean").on("click", function () {
+                    ref.update({"rooms": {"init": 1}});
+                    ref.child("room").remove();
+                });
+            })
+        }
+
+        start();
+    })();
+</script>
+</body>
+</html>

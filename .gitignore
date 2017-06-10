@@ -2,3 +2,6 @@
 /.idea/
 db.php
 baidu_js.html
+api/v1/
+js/wilddog.js
+node_modules/

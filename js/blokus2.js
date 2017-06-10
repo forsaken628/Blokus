@@ -132,103 +132,106 @@ $(function () {
             table.before[i] = 0;
             table.M1[i] = 0;
         }
-        this.show = function (tableName) {
-            var colors = ["", "aqua", "red", "green", "orange"];
-            var i, colorClass;
-            if (!table.hasOwnProperty(tableName)) {
-                return;
-            }
-            var t = table[tableName];
-            for (i in t) {
-                if (t[i] == table.before[i])
-                    continue;
-                table.before[i] = t[i];
-                colorClass = colors[t[i]];
-                td.eq(i).removeClass("aqua red green orange").addClass(colorClass);
-            }
-        };
+        return {
+            show: function (tableName) {
+                var colors = ["", "aqua", "red", "green", "orange"];
+                var i, colorClass;
+                if (!table.hasOwnProperty(tableName)) {
+                    return;
+                }
+                var t = table[tableName];
+                for (i in t) {
+                    if (t[i] == table.before[i])
+                        continue;
+                    table.before[i] = t[i];
+                    colorClass = colors[t[i]];
+                    td.eq(i).removeClass("aqua red green orange").addClass(colorClass);
+                }
+            },
 
-        this.changeTableNow = function (piece, x, y, color) {
-            piece = piece.getPiece();
-            var nodeArr = piece.nodeArr;
-            var i;
+            changeTableNow: function (piece, x, y, color) {
+                piece = piece.getPiece();
+                var nodeArr = piece.nodeArr;
+                var i;
 
-            if (piece.v2 + x < 0
-                || piece.v1 + x >= width
-                || piece.h2 + y < 0
-                || piece.h1 + y >= width) {
+                if (piece.v2 + x < 0
+                    || piece.v1 + x >= width
+                    || piece.h2 + y < 0
+                    || piece.h1 + y >= width) {
+                    return false;
+                }
+
+                for (i in nodeArr) {
+                    var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
+                    table.now[j] = color;
+                }
+                return true;
+            },
+
+            sideCheck: function (piece, x, y, color) {
+                piece = piece.getPiece();
+                var side = piece.side;
+                for (i in side) {
+                    if (x + side[i][0] >= 0
+                        && x + side[i][0] < width
+                        && y + side[i][1] >= 0
+                        && y + side[i][1] < width) {
+                        var j = x + side[i][0] + (y + side[i][1]) * width;
+                        if (table.M1[j] == color) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            },
+
+            cornerCheck: function (piece, x, y, color) {
+                piece = piece.getPiece();
+                var corner = piece.corner;
+                for (i in corner) {
+                    if (x + corner[i][0] >= 0
+                        && x + corner[i][0] < width
+                        && y + corner[i][1] >= 0
+                        && y + corner[i][1] < width) {
+                        var j = x + corner[i][0] + (y + corner[i][1]) * width;
+                        if (table.M1[j] == color) {
+                            return true;
+                        }
+                    }
+                }
                 return false;
-            }
+            },
 
-            for (i in nodeArr) {
-                var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
-                table.now[j] = color;
-            }
-            return true;
-        };
+            startCheck: function () {
+                if (width == 14) {
+                    return (table.now[45] == COLOR || table.now[150] == COLOR);
+                } else {
+                    return (table.now[0] == COLOR
+                    || table.now[width - 1] == COLOR
+                    || table.now[width * (width - 1)] == COLOR
+                    || table.now[width * width - 1] == COLOR);
+                }
+            },
 
-        this.sideCheck = function (piece, x, y, color) {
-            piece = piece.getPiece();
-            var side = piece.side;
-            for (i in side) {
-                if (x + side[i][0] >= 0
-                    && x + side[i][0] < width
-                    && y + side[i][1] >= 0
-                    && y + side[i][1] < width) {
-                    var j = x + side[i][0] + (y + side[i][1]) * width;
+            overlapCheck: function (piece, x, y, color) {
+                piece = piece.getPiece();
+                var nodeArr = piece.nodeArr;
+                for (i in nodeArr) {
+                    var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
                     if (table.M1[j] == color) {
                         return false;
                     }
                 }
-            }
-            return true;
-        };
+                return true;
+            },
 
-        this.cornerCheck = function (piece, x, y, color) {
-            piece = piece.getPiece();
-            var corner = piece.corner;
-            for (i in corner) {
-                if (x + corner[i][0] >= 0
-                    && x + corner[i][0] < width
-                    && y + corner[i][1] >= 0
-                    && y + corner[i][1] < width) {
-                    var j = x + corner[i][0] + (y + corner[i][1]) * width;
-                    if (table.M1[j] == color) {
-                        return true;
-                    }
+            clone: function (fromObj, toObj) {
+                for (var i in table[fromObj]) {
+                    table[toObj][i] = table[fromObj][i];
                 }
             }
-            return false;
         };
 
-        this.startCheck = function () {
-            if (width == 14) {
-                return (table.now[45] == COLOR || table.now[150] == COLOR);
-            } else {
-                return (table.now[0] == COLOR
-                || table.now[width - 1] == COLOR
-                || table.now[width * (width - 1)] == COLOR
-                || table.now[width * width - 1] == COLOR);
-            }
-        };
-
-        this.overlapCheck = function (piece, x, y, color) {
-            piece = piece.getPiece();
-            var nodeArr = piece.nodeArr;
-            for (i in nodeArr) {
-                var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
-                if (table.M1[j] == color) {
-                    return false;
-                }
-            }
-            return true;
-        };
-
-        this.clone = function (fromObj, toObj) {
-            for (var i in table[fromObj]) {
-                table[toObj][i] = table[fromObj][i];
-            }
-        };
     }
 
     function query() {

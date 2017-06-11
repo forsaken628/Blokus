@@ -39,8 +39,13 @@
     <li>选颜色，点 new game</li>
     <li>另打开一个页面，将 room id 复制进去，点 join game</li>
     <li>蓝色先走，红色后走</li>
-    <li>游戏开始时，要把己方颜色的棋子从棋盘起点处（红色格）依次摆放到棋盘上，每个棋子只能与同色棋子的棋角相连，不允许沿同色棋边贴着摆放。在游戏的过程中，您不能只埋头放置自己的方块片，还必须要阻止别人的放置，以便最终让您成为赢家!</li>
-    <li>遇到不可恢复的错误时，点 <button type="button" id="clean">clean</button>，清除野狗后端云的数据</li>
+    <li>
+        游戏开始时，要把己方颜色的棋子从棋盘起点处（红色格）依次摆放到棋盘上，每个棋子只能与同色棋子的棋角相连，不允许沿同色棋边贴着摆放。在游戏的过程中，您不能只埋头放置自己的方块片，还必须要阻止别人的放置，以便最终让您成为赢家!
+    </li>
+    <li>遇到不可恢复的错误时，点
+        <button type="button" id="clean">clean</button>
+        ，清除野狗后端云的数据
+    </li>
     <li>现在相同房间，同一颜色只能登陆一次，考虑以后加上重登陆</li>
     <li>四人房，也以后再说</li>
 </ol>
@@ -74,7 +79,8 @@
 <br/>
 
 <script src="./js/jquery-1.js"></script>
-<script src="https://cdn.wilddog.com/sdk/js/2.5.8/wilddog.js"></script>
+<!--<script src="https://cdn.wilddog.com/sdk/js/2.5.8/wilddog.js"></script>-->
+<script src="./js/wilddog.js"></script>
 <script>
     (function () {
 
@@ -375,13 +381,19 @@
             console.log(data.val());
         });
 
+        var timeOffset;
+
+        function getNow() {
+            return Math.round(((new Date).getTime() + timeOffset) / 1000);
+        }
+
         function start() {
             refRooms.once("value").then(function (data) {
                 var rooms = data.val();
 
                 if (rooms === null) {
                     refRooms.set({"init": 1}).then(start);
-                    return
+                    return;
                 }
 
                 var roomID = 0;
@@ -407,28 +419,49 @@
 
                     var onTurn;
 
-                    refRoom.on("value", function (data) {
+                    refRoom.child("operation").on("value", function (data) {
                         var v = data.val();
                         if (!v) return;
-                        if (v.operation) {
-                            var i;
-                            gameTable.clone("M1", "now");
-                            for (i = oid; i < v.operation.length; i++) {
-                                var op = v.operation[i];
-                                var p = new Piece(op.id);
-                                p.roll(op.direction);
-                                if (op.inverse) {
-                                    p.mirror();
-                                }
-                                gameTable.changeTableNow(p, op.x, op.y, op.color);
+                        gameTable.clone("M1", "now");
+                        for (var i = oid; i < v.length; i++) {
+                            var p = new Piece(v[i].id);
+                            p.roll(v[i].direction);
+                            if (v[i].inverse) {
+                                p.mirror();
                             }
-                            oid = v.operation.length;
-                            gameTable.clone("now", "M1");
-                            gameTable.show("now");
+                            gameTable.changeTableNow(p, v[i].x, v[i].y, v[i].color);
                         }
-
-                        onTurn = (v.player == COLOR);
+                        oid = v.length;
+                        gameTable.clone("now", "M1");
+                        gameTable.show("now");
                     });
+
+                    refRoom.child("player").on("value", function (data) {
+                        onTurn = data.val();
+                    });
+
+                    refRoom.child("online").on("value", function (data) {
+                        var v = data.val();
+                        if (!v)
+                            return;
+                        console.log(v);
+                    });
+
+                    setInterval(function () {
+                        refRoom.child("online").transaction(function (v) {
+                            if (v == null) {
+                                return {};
+                            }
+                            var now = getNow();
+                            for (var i = 1; i <= 2; i++) {
+                                if (v[i] + 15 < now) {
+                                    v[i] = 0;
+                                }
+                            }
+                            v[COLOR] = now;
+                            return v;
+                        })
+                    }, 10000);
 
                     var i, tmp = [];
                     for (i in player) {
@@ -460,7 +493,7 @@
                     });
 
                     td.mouseenter(function () {
-                        if (!onTurn)
+                        if (onTurn != COLOR)
                             return;
                         var x = $(this).index();
                         var y = $(this).parent().index();
@@ -474,7 +507,7 @@
                     });
 
                     td.click(function () {
-                        if (!onTurn)
+                        if (onTurn != COLOR)
                             return;
                         var x = $(this).index();
                         var y = $(this).parent().index();
@@ -539,7 +572,7 @@
                             return;
                         }
                         refRoom = ref.child("room/" + roomID);
-                        refRoom.set({"player": 1});
+                        refRoom.set({"player": 1, "online": [0]});
                         initGame();
                     })
                 });
@@ -586,7 +619,11 @@
             })
         }
 
-        start();
+        var serverTsRef = wilddog.sync().ref("/.info/serverTimeOffset");
+        serverTsRef.once('value', function (snapshot) {
+            timeOffset = snapshot.val();
+        }).then(start);
+
     })();
 </script>
 </body>

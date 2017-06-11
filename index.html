@@ -79,8 +79,8 @@
 <br/>
 
 <script src="./js/jquery-1.js"></script>
-<!--<script src="https://cdn.wilddog.com/sdk/js/2.5.8/wilddog.js"></script>-->
-<script src="./js/wilddog.js"></script>
+<script src="https://cdn.wilddog.com/sdk/js/2.5.8/wilddog.js"></script>
+<!--<script src="./js/wilddog.js"></script>-->
 <script>
     (function () {
 
@@ -356,8 +356,8 @@
         var ref = wilddog.sync();
         var refRooms = ref.child("rooms");
 
-        ref.once("value", function (data) {
-            console.log(data.val());
+        ref.once("value", function (snapshot) {
+            console.log(snapshot.val());
         });
 
         var timeOffset;
@@ -367,8 +367,8 @@
         }
 
         function start() {
-            refRooms.once("value").then(function (data) {
-                var rooms = data.val();
+            refRooms.once("value").then(function (snapshot) {
+                var rooms = snapshot.val();
                 if (rooms === null) {
                     refRooms.set({"init": 1}).then(start);
                     return;
@@ -387,8 +387,8 @@
 
                     var onTurn;
 
-                    refRoom.child("operation").on("value", function (data) {
-                        var v = data.val();
+                    refRoom.child("operation").on("value", function (snapshot) {
+                        var v = snapshot.val();
                         if (!v) return;
                         gameTable.clone("M1", "now");
                         for (var i = oid; i < v.length; i++) {
@@ -404,12 +404,12 @@
                         gameTable.show("now");
                     });
 
-                    refRoom.child("player").on("value", function (data) {
-                        onTurn = data.val();
+                    refRoom.child("player").on("value", function (snapshot) {
+                        onTurn = snapshot.val();
                     });
 
-                    refRoom.child("online").on("value", function (data) {
-                        var v = data.val();
+                    refRoom.child("online").on("value", function (snapshot) {
+                        var v = snapshot.val();
                         if (!v)
                             return;
                         console.log(v);
@@ -578,8 +578,8 @@
                         return;
                     }
 
-                    refRooms.once("value", function (data) {
-                        var v = data.val();
+                    refRooms.once("value", function (snapshot) {
+                        var v = snapshot.val();
                         if (v[id] == undefined) {
                             alert(id + "不是有效的id");
                             return;

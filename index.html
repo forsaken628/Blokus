@@ -144,11 +144,6 @@
                     var i;
                     for (i in nodeArr) {
                         nodeArr[i] = [-nodeArr[i][1], nodeArr[i][0]];//顺时针90度
-                        var t = v1;
-                        v1 = -h2;
-                        h2 = v2;
-                        v2 = -h1;
-                        h1 = t;
                     }
                     for (i in side) {
                         side[i] = ([-side[i][1], side[i][0]]);//顺时针90度
@@ -156,6 +151,11 @@
                     for (i in corner) {
                         corner[i] = ([-corner[i][1], corner[i][0]]);//顺时针90度
                     }
+                    var t = v1;
+                    v1 = -h2;
+                    h2 = v2;
+                    v2 = -h1;
+                    h1 = t;
                 }
             };
 
@@ -367,232 +367,225 @@
         }
 
         function start() {
-            refRooms.once("value").then(function (snapshot) {
-                var rooms = snapshot.val();
-                if (rooms === null) {
-                    refRooms.set({"init": 1}).then(start);
-                    return;
-                }
-                //TODO: only for debug
-                console.log("rooms", rooms.length, rooms);
 
-                function initGame(refRoom, roomID, color) {
-                    $("#room-id").html(roomID);
+            function initGame(refRoom, roomID, color) {
+                $("#room-id").html(roomID);
 
-                    var COLOR = color;
+                var COLOR = color;
 
-                    var piece;
-                    var startFlag = true;
-                    var oid = 0;
+                var piece;
+                var startFlag = true;
+                var oid = 0;
 
-                    var onTurn;
+                var onTurn;
 
-                    refRoom.child("operation").on("value", function (snapshot) {
-                        var v = snapshot.val();
-                        if (!v) return;
-                        gameTable.clone("M1", "now");
-                        for (var i = oid; i < v.length; i++) {
-                            var p = new Piece(v[i].id);
-                            p.roll(v[i].direction);
-                            if (v[i].inverse) {
-                                p.mirror();
-                            }
-                            gameTable.changeTableNow(p, v[i].x, v[i].y, v[i].color);
+                refRoom.child("operation").on("value", function (snapshot) {
+                    var j, tmp = [];
+                    var tmpPlayer = {};
+                    $.extend(tmpPlayer, player);
+                    if (!snapshot.exists()) {
+                        for (j in tmpPlayer) {
+                            tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
                         }
-                        oid = v.length;
-                        gameTable.clone("now", "M1");
-                        gameTable.show("now");
-                    });
+                        pieceSelect.append(tmp);
+                        return;
+                    }
+                    var v = snapshot.val();
+                    gameTable.clone("M1", "now");
+                    for (var i = oid; i < v.length; i++) {
+                        delete tmpPlayer[v[i].id];
+                        var p = new Piece(v[i].id);
+                        p.roll(v[i].direction);
+                        if (v[i].inverse) {
+                            p.mirror();
+                        }
+                        gameTable.changeTableNow(p, v[i].x, v[i].y, v[i].color);
+                    }
+                    oid = v.length;
+                    gameTable.clone("now", "M1");
+                    gameTable.show("now");
 
-                    refRoom.child("player").on("value", function (snapshot) {
-                        onTurn = snapshot.val();
-                    });
-
-                    refRoom.child("online").on("value", function (snapshot) {
-                        var v = snapshot.val();
-                        if (!v)
-                            return;
-                        console.log(v);
-                    });
-
-                    setInterval(function () {
-                        refRoom.child("online").transaction(function (v) {
-                            if (v == null) {
-                                return {};
-                            }
-                            var now = getNow();
-                            for (var i = 1; i <= 2; i++) {
-                                if (v[i] + 15 < now) {
-                                    v[i] = 0;
-                                }
-                            }
-                            v[COLOR] = now;
-                            return v;
-                        })
-                    }, 10000);
-
-                    var i, tmp = [];
-                    for (i in player) {
-                        tmp = tmp.concat($("<option>").val(i).html(player[i]));
+                    for (j in tmpPlayer) {
+                        tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
                     }
                     pieceSelect.append(tmp);
+                });
 
-                    pieceSelect.change(function () {
-                        piece = new Piece(pieceSelect.val(), COLOR);
-                        selectTable.clone("blank", "now");
-                        selectTable.changeTableNow(piece, 2, 2, COLOR);
-                        selectTable.show("now");
-                    });
+                refRoom.child("player").on("value", function (snapshot) {
+                    onTurn = snapshot.val();
+                });
 
-                    pieceSelect.change();
+                refRoom.child("online").on("value", function (snapshot) {
+                    var v = snapshot.val();
+                    if (!v)
+                        return;
+                    console.log(v);
+                });
 
-                    $("#roll").click(function () {
-                        piece.roll(1);
-                        selectTable.clone("blank", "now");
-                        selectTable.changeTableNow(piece, 2, 2, COLOR);
-                        selectTable.show("now");
-                    });
-
-                    $("#mirror").click(function () {
-                        piece.mirror();
-                        selectTable.clone("blank", "now");
-                        selectTable.changeTableNow(piece, 2, 2, COLOR);
-                        selectTable.show("now");
-                    });
-
-                    td.mouseenter(function () {
-                        if (onTurn != COLOR)
-                            return;
-                        var x = $(this).index();
-                        var y = $(this).parent().index();
-                        gameTable.clone("M1", "now");
-                        if (gameTable.overlapCheck(piece, x, y, COLOR)) {
-                            gameTable.changeTableNow(piece, x, y, COLOR);
-                        } else {
-                            gameTable.clone("M1", "now");
-                        }
-                        gameTable.show("now");
-                    });
-
-                    td.click(function () {
-                        if (onTurn != COLOR)
-                            return;
-                        var x = $(this).index();
-                        var y = $(this).parent().index();
-                        var p = piece.getPiece();
-                        if (!gameTable.sideCheck(piece, x, y, COLOR)) {
-                            return;
-                        }
-                        if (startFlag && gameTable.startCheck(COLOR)
-                                || gameTable.cornerCheck(piece, x, y, COLOR)) {
-                            startFlag = false;
-                            gameTable.clone("now", "M1");
-                            var d = {player: (COLOR == 1 ? 2 : 1)};
-                            d["operation/" + oid] = {
-                                id: p.id,
-                                color: p.color,
-                                inverse: p.inverse,
-                                direction: p.direction,
-                                x: x, y: y
-                            };
-                            refRoom.update(d);
-
-                            pieceSelect.find(":selected").remove();
-                            pieceSelect.change();
-
-                        }
-                    });
-
-                    $('#game-table').mouseleave(function () {
-                        gameTable.show("M1");
-                    });
-                }
-
-                function joinGame(id, color) {
-                    var r = ref.child("room/" + id);
-                    r.child("online").transaction(function (v) {
+                setInterval(function () {
+                    refRoom.child("online").transaction(function (v) {
                         if (v == null) {
                             return {};
                         }
-                        if (!v[color] == false) {
-                            alert("颜色已占用");
-                            id = 0;
-                            return;
-                        }
-                        v[color] = getNow();
-                        return v;
-                    }).then(function () {
-                        if (id == 0) {
-                            return;
-                        }
-                        initGame(r, id, color);
-                    });
-                }
-
-                $("#new").on("click", function () {
-                    var color = $("#color").val();
-                    var id = 0;
-                    refRooms.transaction(function (v) {
-                        function getID() {
-                            return Math.round(Math.random() * 99).toString();
-                        }
-
-                        if (v === null) {
-                            return null;
-                        }
-
-                        if (v.length == 100) {
-                            return v;
-                        }
-
-                        id = getID();
-                        for (; ;) {
-                            if (v[id] === undefined) {
-                                v[id] = 2;
-                                v.length = v.length ? v.length + 1 : 1;
-                                return v
+                        var now = getNow();
+                        for (var i = 1; i <= 2; i++) {
+                            if (v[i] + 15 < now) {
+                                v[i] = 0;
                             }
                         }
-                    }).then(function (result) {
-                        if (debug) {
-                            console.log("null issue", result)
-                        } else {
-                            console.log("ok", result)
-                        }
-                        if (id == 0) {
-                            alert("新建失败");
-                            return;
-                        }
-                        var r = ref.child("room/" + id);
-                        r.set({"player": 1, "online": [0]}).then(function () {
-                            joinGame(id, color);
-                        });
+                        v[COLOR] = now;
+                        return v;
                     })
+                }, 10000);
+
+                pieceSelect.change(function () {
+                    piece = new Piece(pieceSelect.val(), COLOR);
+                    selectTable.clone("blank", "now");
+                    selectTable.changeTableNow(piece, 2, 2, COLOR);
+                    selectTable.show("now");
                 });
 
-                $("#join").on("click", function () {
-                    var id = $("#join_id").val();
-                    var color = $("#color").val();
-                    if (id == "") {
+                pieceSelect.change();
+
+                $("#roll").click(function () {
+                    piece.roll(1);
+                    selectTable.clone("blank", "now");
+                    selectTable.changeTableNow(piece, 2, 2, COLOR);
+                    selectTable.show("now");
+                });
+
+                $("#mirror").click(function () {
+                    piece.mirror();
+                    selectTable.clone("blank", "now");
+                    selectTable.changeTableNow(piece, 2, 2, COLOR);
+                    selectTable.show("now");
+                });
+
+                td.mouseenter(function () {
+                    if (onTurn != COLOR)
+                        return;
+                    var x = $(this).index();
+                    var y = $(this).parent().index();
+                    gameTable.clone("M1", "now");
+                    if (gameTable.overlapCheck(piece, x, y, COLOR)) {
+                        gameTable.changeTableNow(piece, x, y, COLOR);
+                    } else {
+                        gameTable.clone("M1", "now");
+                    }
+                    gameTable.show("now");
+                });
+
+                td.click(function () {
+                    if (onTurn != COLOR)
+                        return;
+                    var x = $(this).index();
+                    var y = $(this).parent().index();
+                    var p = piece.getPiece();
+                    if (!gameTable.sideCheck(piece, x, y, COLOR)) {
+                        return;
+                    }
+                    if (startFlag && gameTable.startCheck(COLOR)
+                            || gameTable.cornerCheck(piece, x, y, COLOR)) {
+                        startFlag = false;
+                        gameTable.clone("now", "M1");
+                        var d = {player: (COLOR == 1 ? 2 : 1)};
+                        d["operation/" + oid] = {
+                            id: p.id,
+                            color: p.color,
+                            inverse: p.inverse,
+                            direction: p.direction,
+                            x: x, y: y
+                        };
+                        refRoom.update(d);
+
+                        pieceSelect.find(":selected").remove();
+                        pieceSelect.change();
+
+                    }
+                });
+
+                $('#game-table').mouseleave(function () {
+                    gameTable.show("M1");
+                });
+            }
+
+            function joinGame(id, color) {
+                var r = ref.child("room/" + id);
+                r.child("online").transaction(function (v) {
+                    if (v == null) {
+                        return {};
+                    }
+                    if (v[color] && v[color] + 15 > getNow()) {
+                        alert("颜色已占用");
+                        id = 0;
+                        return;
+                    }
+                    v[color] = getNow();
+                    return v;
+                }).then(function () {
+                    if (id == 0) {
+                        return;
+                    }
+                    initGame(r, id, color);
+                });
+            }
+
+            $("#new").on("click", function () {
+                var color = $("#color").val();
+                var id = 0;
+
+                refRooms.transaction(function (v) {
+                    if (v === null) {
+                        return [0];
+                    }
+
+                    var a = [];
+                    for (var i = 1; i <= 99; i++) {
+                        if (v[i] === undefined) {
+                            a.push(i)
+                        }
+                    }
+                    if (a.length == 0) {
+                        return v;
+                    }
+                    id = a[Math.round(Math.random() * a.length)];
+                    v[id] = 2;
+                    return v;
+
+                }).then(function (result) {
+                    if (id == 0) {
+                        alert("新建失败");
+                        return;
+                    }
+                    var r = ref.child("room/" + id);
+                    r.set({"player": 1, "online": [0]}).then(function () {
+                        joinGame(id, color);
+                    });
+                })
+            });
+
+            $("#join").on("click", function () {
+                var id = $("#join_id").val();
+                var color = $("#color").val();
+                if (id == "") {
+                    alert(id + "不是有效的id");
+                    return;
+                }
+
+                refRooms.once("value").then(function (snapshot) {
+                    var v = snapshot.val();
+                    if (v[id] == undefined) {
                         alert(id + "不是有效的id");
                         return;
                     }
-
-                    refRooms.once("value", function (snapshot) {
-                        var v = snapshot.val();
-                        if (v[id] == undefined) {
-                            alert(id + "不是有效的id");
-                            return;
-                        }
-                        joinGame(id, color);
-                    })
+                    joinGame(id, color);
                 });
+            });
 
-                $("#clean").on("click", function () {
-                    ref.update({"rooms": {"init": 1}});
-                    ref.child("room").remove();
-                });
-            })
+            $("#clean").on("click", function () {
+                ref.remove();
+                ref.update({"rooms": [0]});
+            });
         }
 
         var serverTsRef = wilddog.sync().ref("/.info/serverTimeOffset");

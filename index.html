@@ -46,7 +46,7 @@
         <button type="button" id="clean">clean</button>
         ，清除野狗后端云的数据
     </li>
-    <li>现在相同房间，同一颜色只能登陆一次，考虑以后加上重登陆</li>
+    <li>10秒一次心跳包，15秒超时后可重新登陆</li>
     <li>四人房，也以后再说</li>
 </ol>
 
@@ -316,27 +316,6 @@
 
         }
 
-        function Mask(n) {
-            this.mask = n;
-            this.take = function (n) {
-                if (n < 0 || n > 31)
-                    return false;
-                if (~this.mask & 1 << n)
-                    return false;
-                this.mask &= ~(1 << n);
-                return true;
-            };
-            this.query = function () {
-                var i;
-                var a = [];
-                for (i = 0; 1 << i < this.mask; i++) {
-                    if (this.mask & (1 << i))
-                        a.push(i)
-                }
-                return a;
-            };
-        }
-
         var player = {
             0: '1',
             1: '2',
@@ -390,28 +369,17 @@
         function start() {
             refRooms.once("value").then(function (data) {
                 var rooms = data.val();
-
                 if (rooms === null) {
                     refRooms.set({"init": 1}).then(start);
                     return;
                 }
+                //TODO: only for debug
+                console.log("rooms", rooms.length, rooms);
 
-                var roomID = 0;
-                var refRoom;
-
-                var COLOR = 0;
-
-                refRooms.on("value", function (data) {
-                    var v = data.val();
-                    if (v === null) {
-                        return;
-                    }
-                    rooms = data.val();
-                    console.log("rooms", v.length, v);
-                });
-
-                function initGame() {
+                function initGame(refRoom, roomID, color) {
                     $("#room-id").html(roomID);
+
+                    var COLOR = color;
 
                     var piece;
                     var startFlag = true;
@@ -540,76 +508,84 @@
                     });
                 }
 
-                $("#new").on("click", function () {
-                    refRooms.transaction(function (v) {
-                        COLOR = $("#color").val();
+                function joinGame(id, color) {
+                    var r = ref.child("room/" + id);
+                    r.child("online").transaction(function (v) {
+                        if (v == null) {
+                            return {};
+                        }
+                        if (!v[color] == false) {
+                            alert("颜色已占用");
+                            id = 0;
+                            return;
+                        }
+                        v[color] = getNow();
+                        return v;
+                    }).then(function () {
+                        if (id == 0) {
+                            return;
+                        }
+                        initGame(r, id, color);
+                    });
+                }
 
+                $("#new").on("click", function () {
+                    var color = $("#color").val();
+                    var id = 0;
+                    refRooms.transaction(function (v) {
                         function getID() {
                             return Math.round(Math.random() * 99).toString();
                         }
 
-                        if (v == null) {
-                            return {};
+                        if (v === null) {
+                            return null;
                         }
 
                         if (v.length == 100) {
                             return v;
                         }
 
-                        roomID = getID();
+                        id = getID();
                         for (; ;) {
-                            if (v[roomID] === undefined) {
-                                var m = new Mask(7);
-                                m.take(0);
-                                m.take(COLOR);
-                                v[roomID] = m.mask;
+                            if (v[id] === undefined) {
+                                v[id] = 2;
                                 v.length = v.length ? v.length + 1 : 1;
                                 return v
                             }
                         }
-                    }).then(function () {
-                        if (roomID == 0) {
+                    }).then(function (result) {
+                        if (debug) {
+                            console.log("null issue", result)
+                        } else {
+                            console.log("ok", result)
+                        }
+                        if (id == 0) {
+                            alert("新建失败");
                             return;
                         }
-                        refRoom = ref.child("room/" + roomID);
-                        refRoom.set({"player": 1, "online": [0]});
-                        initGame();
+                        var r = ref.child("room/" + id);
+                        r.set({"player": 1, "online": [0]}).then(function () {
+                            joinGame(id, color);
+                        });
                     })
                 });
 
                 $("#join").on("click", function () {
                     var id = $("#join_id").val();
-                    COLOR = $("#color").val();
-
-                    if (id == "" || rooms[id] == undefined) {
+                    var color = $("#color").val();
+                    if (id == "") {
                         alert(id + "不是有效的id");
                         return;
                     }
-                    var m = new Mask(rooms[id]);
-                    if (!m.take(COLOR)) {
-                        alert("不是有效的颜色");
-                        return;
-                    }
 
-                    refRooms.transaction(function (v) {
-                        if (v == null) {
-                            return {};
-                        }
-                        var m = new Mask(v[id]);
-                        if (!m.take(COLOR)) {
-                            alert("不是有效的颜色");
-                            id = 0;
+                    refRooms.once("value", function (data) {
+                        var v = data.val();
+                        if (v[id] == undefined) {
+                            alert(id + "不是有效的id");
                             return;
                         }
-                        return m.mask;
-                    }).then(function () {
-                        if (id == 0) {
-                            return;
-                        }
-                        roomID = id;
-                        refRoom = ref.child("room/" + roomID);
-                        initGame();
-                    });
+                        joinGame(id, color);
+                    })
                 });
 
                 $("#clean").on("click", function () {
@@ -623,7 +599,6 @@
         serverTsRef.once('value', function (snapshot) {
             timeOffset = snapshot.val();
         }).then(start);
-
     })();
 </script>
 </body>

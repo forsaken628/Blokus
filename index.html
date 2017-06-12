@@ -237,9 +237,9 @@
                     var i;
 
                     if (piece.v2 + x < 0
-                            || piece.v1 + x >= width
-                            || piece.h2 + y < 0
-                            || piece.h1 + y >= width) {
+                        || piece.v1 + x >= width
+                        || piece.h2 + y < 0
+                        || piece.h1 + y >= width) {
                         return false;
                     }
 
@@ -255,9 +255,9 @@
                     var side = piece.side;
                     for (i in side) {
                         if (x + side[i][0] >= 0
-                                && x + side[i][0] < width
-                                && y + side[i][1] >= 0
-                                && y + side[i][1] < width) {
+                            && x + side[i][0] < width
+                            && y + side[i][1] >= 0
+                            && y + side[i][1] < width) {
                             var j = x + side[i][0] + (y + side[i][1]) * width;
                             if (table.M1[j] == color) {
                                 return false;
@@ -272,9 +272,9 @@
                     var corner = piece.corner;
                     for (i in corner) {
                         if (x + corner[i][0] >= 0
-                                && x + corner[i][0] < width
-                                && y + corner[i][1] >= 0
-                                && y + corner[i][1] < width) {
+                            && x + corner[i][0] < width
+                            && y + corner[i][1] >= 0
+                            && y + corner[i][1] < width) {
                             var j = x + corner[i][0] + (y + corner[i][1]) * width;
                             if (table.M1[j] == color) {
                                 return true;
@@ -300,7 +300,7 @@
                     var nodeArr = piece.nodeArr;
                     for (i in nodeArr) {
                         var j = x + nodeArr[i][0] + (y + nodeArr[i][1]) * width;
-                        if (table.M1[j] == color) {
+                        if (table.M1[j] != 0) {
                             return false;
                         }
                     }
@@ -379,21 +379,24 @@
 
                 var onTurn;
 
+                var tmpPlayer = {};
+                $.extend(tmpPlayer, player);
+
                 refRoom.child("operation").on("value", function (snapshot) {
                     var j, tmp = [];
-                    var tmpPlayer = {};
-                    $.extend(tmpPlayer, player);
                     if (!snapshot.exists()) {
                         for (j in tmpPlayer) {
                             tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
                         }
-                        pieceSelect.append(tmp);
+                        pieceSelect.html(tmp);
                         return;
                     }
                     var v = snapshot.val();
                     gameTable.clone("M1", "now");
                     for (var i = oid; i < v.length; i++) {
-                        delete tmpPlayer[v[i].id];
+                        if (v[i].color == color) {
+                            delete tmpPlayer[v[i].id];
+                        }
                         var p = new Piece(v[i].id);
                         p.roll(v[i].direction);
                         if (v[i].inverse) {
@@ -408,7 +411,7 @@
                     for (j in tmpPlayer) {
                         tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
                     }
-                    pieceSelect.append(tmp);
+                    pieceSelect.html(tmp);
                 });
 
                 refRoom.child("player").on("value", function (snapshot) {
@@ -485,7 +488,7 @@
                         return;
                     }
                     if (startFlag && gameTable.startCheck(COLOR)
-                            || gameTable.cornerCheck(piece, x, y, COLOR)) {
+                        || gameTable.cornerCheck(piece, x, y, COLOR)) {
                         startFlag = false;
                         gameTable.clone("now", "M1");
                         var d = {player: (COLOR == 1 ? 2 : 1)};

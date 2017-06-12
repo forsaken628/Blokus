@@ -44,7 +44,8 @@
     </li>
     <li>遇到不可恢复的错误时，点
         <button type="button" id="clean">clean</button>
-        ，清除野狗后端云的数据
+        ，清除野狗后端云的数据，
+        <button type="button" id="debug">debug</button>
     </li>
     <li>10秒一次心跳包，15秒超时后可重新登陆</li>
     <li>四人房，也以后再说</li>
@@ -295,7 +296,7 @@
                     }
                 },
 
-                overlapCheck: function (piece, x, y, color) {
+                overlapCheck: function (piece, x, y) {
                     piece = piece.getPiece();
                     var nodeArr = piece.nodeArr;
                     for (i in nodeArr) {
@@ -356,8 +357,10 @@
         var ref = wilddog.sync();
         var refRooms = ref.child("rooms");
 
-        ref.once("value", function (snapshot) {
-            console.log(snapshot.val());
+        $("#debug").on("click", function () {
+            ref.once("value", function (snapshot) {
+                console.log(snapshot.val());
+            });
         });
 
         var timeOffset;
@@ -371,8 +374,6 @@
             function initGame(refRoom, roomID, color) {
                 $("#room-id").html(roomID);
 
-                var COLOR = color;
-
                 var piece;
                 var startFlag = true;
                 var oid = 0;
@@ -384,6 +385,7 @@
 
                 refRoom.child("operation").on("value", function (snapshot) {
                     var j, tmp = [];
+                    var refresh;
                     if (!snapshot.exists()) {
                         for (j in tmpPlayer) {
                             tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
@@ -397,6 +399,7 @@
                     for (var i = oid; i < v.length; i++) {
                         if (v[i].color == color) {
                             delete tmpPlayer[v[i].id];
+                            refresh = true;
                         }
                         var p = new Piece(v[i].id);
                         p.roll(v[i].direction);
@@ -408,23 +411,17 @@
                     oid = v.length;
                     gameTable.clone("now", "M1");
                     gameTable.show("now");
-
-                    for (j in tmpPlayer) {
-                        tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
+                    if (refresh) {
+                        for (j in tmpPlayer) {
+                            tmp = tmp.concat($("<option>").val(j).html(tmpPlayer[j]));
+                        }
+                        pieceSelect.html(tmp);
+                        pieceSelect.change();
                     }
-                    pieceSelect.html(tmp);
-                    pieceSelect.change();
                 });
 
                 refRoom.child("player").on("value", function (snapshot) {
                     onTurn = snapshot.val();
-                });
-
-                refRoom.child("online").on("value", function (snapshot) {
-                    var v = snapshot.val();
-                    if (!v)
-                        return;
-                    console.log(v);
                 });
 
                 setInterval(function () {
@@ -438,15 +435,15 @@
                                 v[i] = 0;
                             }
                         }
-                        v[COLOR] = now;
+                        v[color] = now;
                         return v;
                     })
                 }, 10000);
 
                 pieceSelect.change(function () {
-                    piece = new Piece(pieceSelect.val(), COLOR);
+                    piece = new Piece(pieceSelect.val(), color);
                     selectTable.clone("blank", "now");
-                    selectTable.changeTableNow(piece, 2, 2, COLOR);
+                    selectTable.changeTableNow(piece, 2, 2, color);
                     selectTable.show("now");
                 });
 
@@ -455,25 +452,25 @@
                 $("#roll").click(function () {
                     piece.roll(1);
                     selectTable.clone("blank", "now");
-                    selectTable.changeTableNow(piece, 2, 2, COLOR);
+                    selectTable.changeTableNow(piece, 2, 2, color);
                     selectTable.show("now");
                 });
 
                 $("#mirror").click(function () {
                     piece.mirror();
                     selectTable.clone("blank", "now");
-                    selectTable.changeTableNow(piece, 2, 2, COLOR);
+                    selectTable.changeTableNow(piece, 2, 2, color);
                     selectTable.show("now");
                 });
 
                 td.mouseenter(function () {
-                    if (onTurn != COLOR)
+                    if (onTurn != color)
                         return;
                     var x = $(this).index();
                     var y = $(this).parent().index();
                     gameTable.clone("M1", "now");
-                    if (gameTable.overlapCheck(piece, x, y, COLOR)) {
-                        gameTable.changeTableNow(piece, x, y, COLOR);
+                    if (gameTable.overlapCheck(piece, x, y)) {
+                        gameTable.changeTableNow(piece, x, y, color);
                     } else {
                         gameTable.clone("M1", "now");
                     }
@@ -481,19 +478,19 @@
                 });
 
                 td.click(function () {
-                    if (onTurn != COLOR)
+                    if (onTurn != color)
                         return;
                     var x = $(this).index();
                     var y = $(this).parent().index();
                     var p = piece.getPiece();
-                    if (!gameTable.sideCheck(piece, x, y, COLOR)) {
+                    if (!gameTable.sideCheck(piece, x, y, color)) {
                         return;
                     }
-                    if (startFlag && gameTable.startCheck(COLOR)
-                        || gameTable.cornerCheck(piece, x, y, COLOR)) {
+                    if (startFlag && gameTable.startCheck(color)
+                        || gameTable.cornerCheck(piece, x, y, color)) {
                         startFlag = false;
                         gameTable.clone("now", "M1");
-                        var d = {player: (COLOR == 1 ? 2 : 1)};
+                        var d = {player: (color == 1 ? 2 : 1)};
                         d["operation/" + oid] = {
                             id: p.id,
                             color: p.color,

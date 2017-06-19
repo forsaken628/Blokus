@@ -5,3 +5,6 @@ baidu_js.html
 api/v1/
 js/wilddog.js
 node_modules/
+/.vagrant/
+/ubuntu-xenial-16.04-cloudimg-console.log
+/Vagrantfile
